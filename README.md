@@ -35,7 +35,8 @@ Nahrajte `dist/` na libovolný HTTPS hosting (GitHub Pages, Netlify, Cloudflare 
 - iOS/Safari: Sdílet → Přidat na plochu.
 
 ### Android APK (sideload / alternativní story)
-Potřebuje JDK 21 a Android SDK (nejsnáz Android Studio).
+Potřebuje JDK 21 a Android SDK (nejsnáz Android Studio). Bez lokálního buildu: hotové APK
+sestaví GitHub Actions (workflow „Build Android APK“ → Artifacts).
 
 ```bash
 npm run android:open   # otevře projekt v Android Studiu

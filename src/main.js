@@ -58,7 +58,7 @@ card({
     [
       'Zjistit',
       async (log) => {
-        const names = ['geolocation', 'camera', 'microphone', 'notifications', 'clipboard-read', 'clipboard-write'];
+        const names = ['geolocation', 'camera', 'microphone', 'notifications', 'clipboard-read', 'clipboard-write', 'persistent-storage'];
         const result = {};
         for (const name of names) {
           try {
@@ -135,6 +135,60 @@ card({
         const r = await DeviceInsights.isInstalled({ packageName: 'com.whatsapp' });
         log(r);
       },
+    ],
+  ],
+});
+
+const PHOTOS = { full: 'všechny fotky', partial: 'jen vybrané fotky (Android 14+)', denied: 'žádné' };
+
+const formatBytes = (n) => (n == null ? '?' : n > 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${(n / 1e6).toFixed(1)} MB`);
+
+card({
+  title: 'Úložiště',
+  note:
+    'Web: jen vlastní sandbox (kvóta, „persistent storage“) a soubory, které uživatel sám vybere. ' +
+    'Android 13+: místo READ_EXTERNAL_STORAGE jen média (READ_MEDIA_*), Android 14+ i „jen vybrané fotky“. ' +
+    'Přístup ke všem souborům (MANAGE_EXTERNAL_STORAGE) se zapíná ručně v Nastavení.',
+  actions: [
+    [
+      'Zjistit',
+      async (log) => {
+        if (isNative) {
+          const r = await DeviceInsights.getStorageStatus();
+          return log({ ...r, photos: PHOTOS[r.photos] });
+        }
+        if (!navigator.storage) throw new Error('StorageManager API tu není k dispozici');
+        const { usage, quota } = await navigator.storage.estimate();
+        log({
+          vyuzito: formatBytes(usage),
+          kvota: formatBytes(quota),
+          persistentni: await navigator.storage.persisted(),
+        });
+      },
+    ],
+    [
+      isNative ? 'Požádat o fotky' : 'Požádat o trvalé úložiště',
+      async (log) => {
+        if (isNative) {
+          const r = await DeviceInsights.requestMediaAccess();
+          return log({ ...r, photos: PHOTOS[r.photos] });
+        }
+        // Chrome decides silently (engagement, installed PWA, bookmarks), Firefox asks the user.
+        const granted = await navigator.storage.persist();
+        log(granted ? 'Trvalé úložiště povoleno – prohlížeč data nesmaže při nedostatku místa.' : 'Zamítnuto.', granted ? 'ok' : 'err');
+      },
+    ],
+    [
+      'Vybrat soubor',
+      (log) =>
+        new Promise((resolve) => {
+          // The system picker works without any permission: the user grants access to exactly the chosen files.
+          const input = Object.assign(document.createElement('input'), { type: 'file', multiple: true });
+          input.onchange = () =>
+            resolve(log([...input.files].map((f) => `${f.name}  —  ${formatBytes(f.size)}, ${f.type || '?'}`).join('\n')));
+          input.oncancel = () => resolve(log('Zrušeno.', 'err'));
+          input.click();
+        }),
     ],
   ],
 });

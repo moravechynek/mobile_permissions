@@ -8,6 +8,7 @@ Demo aplikace k prezentaci o mobilních aplikacích: **stejný kód** běží ja
 | Schránka | `navigator.clipboard` (gesto + svolení) | `ClipboardManager` přes vlastní plugin, test čtení z pozadí |
 | Nainstalované aplikace | ❌ nejde | ✅ `PackageManager` (omezeno package visibility) |
 | Poloha, kamera | prompt prohlížeče | runtime permission Androidu |
+| Úložiště | kvóta + `navigator.storage.persist()`, soubory jen přes picker | `READ_MEDIA_*` (13+), „jen vybrané fotky“ (14+), `MANAGE_EXTERNAL_STORAGE` |
 | Notifikace | Notification API (iOS jen nainstalovaná PWA) | ❌ ve WebView není (nutný nativní plugin) |
 
 ## Struktura
@@ -52,5 +53,8 @@ APK lze rozdat přímo, přes GitHub Releases (+ Obtainium) nebo F-Droid.
    Pak v `AndroidManifest.xml` odkomentujte `QUERY_ALL_PACKAGES`, přebuildujte a uvidíte **všechno**.
    Proto ho Google Play povoluje jen schváleným kategoriím aplikací.
 3. **Web vs. nativ:** stejná karta „Nainstalované aplikace“ v PWA skončí chybou „not implemented“.
-4. **Oprávnění:** poloha („jen tentokrát“, přibližná poloha), kamera (indikátor v liště), pak
+4. **Úložiště:** „Požádat o fotky“ → na Androidu 14+ zvolit „Vybrat fotky“ a vybrat 2 → `visibleImages: 2`.
+   Pak v Nastavení povolit vše a znovu „Zjistit“. „Vybrat soubor“ funguje i bez oprávnění (systémový picker).
+   Pro `MANAGE_EXTERNAL_STORAGE` ho odkomentujte v manifestu a zapněte v Nastavení → Zvláštní přístup aplikací.
+5. **Oprávnění:** poloha („jen tentokrát“, přibližná poloha), kamera (indikátor v liště), pak
    odebrání oprávnění v Nastavení → Aplikace a znovu „Stav oprávnění“.

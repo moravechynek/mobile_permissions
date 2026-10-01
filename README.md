@@ -4,10 +4,14 @@ Demo aplikace k prezentaci o mobilních aplikacích: **stejný kód** běží ja
 
 | Karta | PWA / web | Nativní Android |
 |---|---|---|
-| Stav oprávnění | Permissions API | Permissions API ve WebView |
+| Všechna oprávnění | Permissions API (20 názvů) | celý manifest + úroveň ochrany, „Požádat o všechna“ |
 | Schránka | `navigator.clipboard` (gesto + svolení) | `ClipboardManager` přes vlastní plugin, test čtení z pozadí |
 | Nainstalované aplikace | ❌ nejde | ✅ `PackageManager` (omezeno package visibility) |
-| Poloha, kamera | prompt prohlížeče | runtime permission Androidu |
+| Poloha, kamera, mikrofon | prompt prohlížeče | runtime permission Androidu (`RECORD_AUDIO` aj.) |
+| Senzory pohybu | DeviceMotion/Orientation (iOS 13+ se ptá) | seznam senzorů bez oprávnění, krokoměr `ACTIVITY_RECOGNITION` |
+| Kontakty, kalendář | Contact Picker (vybrané kontakty) | `READ_CONTACTS`, `READ_CALENDAR` – vše najednou |
+| Zařízení v okolí | Web Bluetooth (výběr zařízení) | `BLUETOOTH_CONNECT` (12+), SSID Wi‑Fi jen s polohou |
+| Bez ptaní | vibrace, wake lock, baterie, síť | normální oprávnění (`VIBRATE`, `ACCESS_NETWORK_STATE`) |
 | Úložiště | kvóta + `navigator.storage.persist()`, soubory jen přes picker | `READ_MEDIA_*` (13+), „jen vybrané fotky“ (14+), `MANAGE_EXTERNAL_STORAGE` |
 | Notifikace | Notification API (iOS jen nainstalovaná PWA) | ❌ ve WebView není (nutný nativní plugin) |
 

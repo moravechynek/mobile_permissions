@@ -13,7 +13,9 @@ const isStandalone =
 // ---------- UI helpers ----------
 
 const cards = document.getElementById('cards');
+const cardEls = [];
 
+// `actions` entries may be falsy to leave a button out on one platform.
 function card({ title, note, actions }) {
   const el = document.createElement('section');
   el.className = 'card';
@@ -23,7 +25,7 @@ function card({ title, note, actions }) {
     out.className = `out ${kind}`;
     out.textContent = typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2);
   };
-  for (const [label, fn] of actions) {
+  for (const [label, fn] of actions.filter(Boolean)) {
     const btn = document.createElement('button');
     btn.textContent = label;
     btn.onclick = async () => {
@@ -36,10 +38,28 @@ function card({ title, note, actions }) {
     };
     el.querySelector('.actions').append(btn);
   }
-  cards.append(el);
+  cardEls.push(el);
+}
+
+// Masonry: cards go into fixed columns (each to the currently shortest one), so cards of different
+// heights leave no gaps. Columns are rebuilt only when their count changes, so cards don't jump around
+// while their output grows.
+const CARD_MIN_WIDTH = 340;
+const GAP = 12;
+let columnCount = 0;
+
+function layoutCards() {
+  const n = Math.max(1, Math.floor((cards.clientWidth + GAP) / (CARD_MIN_WIDTH + GAP)));
+  if (n === columnCount) return;
+  columnCount = n;
+  const cols = Array.from({ length: n }, () => Object.assign(document.createElement('div'), { className: 'col' }));
+  cards.replaceChildren(...cols);
+  for (const el of cardEls) cols.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a)).append(el);
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const round = (v) => (v == null ? null : Math.round(v * 10) / 10);
+const notOnWeb = (what) => new Error(`${what} – na webu/PWA to nejde, jen v nativní aplikaci`);
 
 // ---------- Environment ----------
 
@@ -51,23 +71,228 @@ document.getElementById('env').innerHTML = [
 
 // ---------- Demos ----------
 
+// Everything the Permissions API knows about; unsupported names throw and are reported as such.
+const WEB_PERMISSIONS = [
+  'geolocation', 'camera', 'microphone', 'notifications', 'push', 'clipboard-read', 'clipboard-write',
+  'persistent-storage', 'accelerometer', 'gyroscope', 'magnetometer', 'ambient-light-sensor', 'background-sync',
+  'screen-wake-lock', 'midi', 'storage-access', 'window-management', 'local-fonts', 'idle-detection', 'nfc',
+];
+
+const LEVELS = {
+  runtime: 'runtime – dialog',
+  special: 'speciální – Nastavení',
+  normal: 'normální – bez ptaní',
+  signature: 'signature',
+  internal: 'interní',
+  unknown: 'na této verzi neexistuje',
+};
+
+function formatAndroidPermissions({ permissions, sdkInt }) {
+  const order = Object.keys(LEVELS);
+  const sorted = [...permissions].sort((a, b) => order.indexOf(a.level) - order.indexOf(b.level));
+  let level;
+  const lines = [`Android API ${sdkInt}, oprávnění v manifestu: ${permissions.length}`];
+  for (const p of sorted) {
+    if (p.level !== level) lines.push('', `${LEVELS[p.level] ?? p.level}:`);
+    level = p.level;
+    lines.push(`  ${p.granted ? '✓' : '✗'} ${p.name.replace('android.permission.', '')}`);
+  }
+  return lines.join('\n');
+}
+
 card({
-  title: 'Stav oprávnění',
-  note: 'Permissions API: co aplikace smí, aniž by se uživatele ptala.',
+  title: 'Všechna oprávnění',
+  note:
+    'Web: Permissions API – co stránka smí, aniž by se ptala. Android: vše z AndroidManifest.xml ' +
+    's úrovní ochrany (normální / runtime / speciální). „Požádat o všechna“ ukazuje, proč aplikace nemají žádat vše najednou.',
   actions: [
     [
-      'Zjistit',
+      'Vypsat',
       async (log) => {
-        const names = ['geolocation', 'camera', 'microphone', 'notifications', 'clipboard-read', 'clipboard-write', 'persistent-storage'];
+        if (isNative) return log(formatAndroidPermissions(await DeviceInsights.getAllPermissions()));
         const result = {};
-        for (const name of names) {
+        for (const name of WEB_PERMISSIONS) {
           try {
-            result[name] = (await navigator.permissions.query({ name })).state;
+            const desc = name === 'push' ? { name, userVisibleOnly: true } : { name };
+            result[name] = (await navigator.permissions.query(desc)).state;
           } catch {
             result[name] = 'nepodporováno';
           }
         }
         log(result);
+      },
+    ],
+    isNative && [
+      'Požádat o všechna',
+      async (log) => log(formatAndroidPermissions(await DeviceInsights.requestAllPermissions())),
+    ],
+  ],
+});
+
+card({
+  title: 'Poloha',
+  note: 'Uživatel může dát jen přibližnou polohu nebo povolení „jen tentokrát“.',
+  actions: [
+    [
+      'Získat polohu',
+      (log) =>
+        new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(
+            ({ coords }) => resolve(log({ lat: coords.latitude, lon: coords.longitude, presnost_m: coords.accuracy })),
+            reject,
+            { enableHighAccuracy: true, timeout: 15000 },
+          ),
+        ),
+    ],
+  ],
+});
+
+card({
+  title: 'Kamera',
+  note: 'Při použití svítí indikátor kamery (Android 12+, iOS 14+).',
+  actions: [
+    [
+      'Zapnout',
+      async (log, el) => {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        let video = el.querySelector('video');
+        if (!video) {
+          video = Object.assign(document.createElement('video'), { autoplay: true, playsInline: true, muted: true });
+          el.append(video);
+        }
+        video.srcObject = stream;
+        log('Kamera běží.');
+      },
+    ],
+    [
+      'Vypnout',
+      async (log, el) => {
+        const video = el.querySelector('video');
+        video?.srcObject?.getTracks().forEach((t) => t.stop());
+        video?.remove();
+        log('Kamera vypnuta.');
+      },
+    ],
+  ],
+});
+
+let mic = null; // { stream, ctx, raf }
+
+card({
+  title: 'Mikrofon',
+  note:
+    'Android: RECORD_AUDIO (runtime), od 12 indikátor a vypínač v rychlém nastavení. Web: getUserMedia jen přes HTTPS. ' +
+    'Před povolením prohlížeč skrývá názvy zařízení – jinak by šly použít k fingerprintingu.',
+  actions: [
+    [
+      'Zapnout',
+      async (log, el) => {
+        if (mic) return log('Mikrofon už běží.');
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const ctx = new AudioContext();
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        let meter = el.querySelector('.meter');
+        if (!meter) {
+          meter = Object.assign(document.createElement('div'), { className: 'meter', innerHTML: '<div></div>' });
+          el.append(meter);
+        }
+        const bar = meter.firstElementChild;
+        const samples = new Float32Array(analyser.fftSize);
+        const tick = () => {
+          analyser.getFloatTimeDomainData(samples);
+          const rms = Math.sqrt(samples.reduce((s, v) => s + v * v, 0) / samples.length);
+          bar.style.width = `${Math.min(100, rms * 400)}%`;
+          mic.raf = requestAnimationFrame(tick);
+        };
+        mic = { stream, ctx };
+        tick();
+        log(`Mikrofon běží: ${stream.getAudioTracks()[0].label || '(bez názvu)'} – zkuste mluvit.`);
+      },
+    ],
+    [
+      'Vypnout',
+      async (log, el) => {
+        if (mic) {
+          cancelAnimationFrame(mic.raf);
+          mic.stream.getTracks().forEach((t) => t.stop());
+          await mic.ctx.close();
+          mic = null;
+        }
+        el.querySelector('.meter')?.remove();
+        log('Mikrofon vypnut.');
+      },
+    ],
+    [
+      'Seznam zařízení',
+      async (log) => {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        log(devices.map((d) => `${d.kind}: ${d.label || '(název skrytý – zatím bez povolení)'}`).join('\n') || 'Žádná zařízení.');
+      },
+    ],
+  ],
+});
+
+const GENERIC_SENSORS = [
+  'Accelerometer', 'LinearAccelerationSensor', 'GravitySensor', 'Gyroscope', 'Magnetometer',
+  'AbsoluteOrientationSensor', 'RelativeOrientationSensor', 'AmbientLightSensor',
+];
+
+card({
+  title: 'Senzory pohybu',
+  note:
+    'Akcelerometr a gyroskop nechtějí na Androidu žádné oprávnění (od 12 jen omezená frekvence 200 Hz). ' +
+    'iOS 13+ se na pohyb ptá. Krokoměr: ACTIVITY_RECOGNITION (Android 10+), tep: BODY_SENSORS.',
+  actions: [
+    [
+      'Měřit 5 s',
+      async (log) => {
+        // iOS 13+ only: must be called from a click.
+        if (typeof DeviceMotionEvent?.requestPermission === 'function') {
+          const state = await DeviceMotionEvent.requestPermission();
+          if (state !== 'granted') return log(`iOS oprávnění: ${state}`, 'err');
+        }
+        let count = 0;
+        let accel = {};
+        let orient = {};
+        const onMotion = (e) => {
+          count++;
+          const a = e.accelerationIncludingGravity ?? {};
+          accel = { x: round(a.x), y: round(a.y), z: round(a.z) };
+        };
+        const onOrient = (e) => (orient = { alpha: round(e.alpha), beta: round(e.beta), gamma: round(e.gamma) });
+        addEventListener('devicemotion', onMotion);
+        addEventListener('deviceorientation', onOrient);
+        const start = performance.now();
+        const timer = setInterval(() => log({ zrychleni_m_s2: accel, orientace_st: orient }, 'pending'), 200);
+        await sleep(5000);
+        clearInterval(timer);
+        removeEventListener('devicemotion', onMotion);
+        removeEventListener('deviceorientation', onOrient);
+        if (!count) return log('Žádná data – zařízení nemá pohybové senzory (desktop?) nebo je přístup blokovaný.', 'err');
+        log({ zrychleni_m_s2: accel, orientace_st: orient, frekvence_hz: Math.round(count / ((performance.now() - start) / 1000)) });
+      },
+    ],
+    [
+      'Seznam senzorů',
+      async (log) => {
+        if (isNative) {
+          const { sensors } = await DeviceInsights.getSensors();
+          return log(`Senzorů: ${sensors.length} (bez jakéhokoli oprávnění)\n\n` + sensors.map((s) => `${s.type}  —  ${s.name}`).join('\n'));
+        }
+        log({
+          DeviceMotionEvent: 'DeviceMotionEvent' in window,
+          DeviceOrientationEvent: 'DeviceOrientationEvent' in window,
+          ...Object.fromEntries(GENERIC_SENSORS.map((n) => [n, n in window])),
+        });
+      },
+    ],
+    [
+      'Kroky',
+      async (log) => {
+        if (!isNative) throw notOnWeb('Krokoměr');
+        log(await DeviceInsights.readSteps());
       },
     ],
   ],
@@ -108,6 +333,69 @@ card({
         }
       },
     ],
+  ],
+});
+
+card({
+  title: 'Kontakty a kalendář',
+  note:
+    'Android: READ_CONTACTS / READ_CALENDAR dají přístup ke všem záznamům najednou (jména jsou tu zamaskovaná). ' +
+    'Web: Contact Picker (jen Chrome na Androidu) – uživatel vybere konkrétní kontakty, nic víc.',
+  actions: [
+    [
+      'Vybrat kontakt',
+      async (log) => {
+        if (!('contacts' in navigator)) throw new Error('Contact Picker API tu není (jen Chrome na Androidu)');
+        const picked = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+        log(picked.length ? picked : 'Nic nevybráno.');
+      },
+    ],
+    [
+      'Všechny kontakty',
+      async (log) => {
+        if (!isNative) throw notOnWeb('Číst celý adresář');
+        const r = await DeviceInsights.readContacts();
+        log(`Kontaktů: ${r.count}\n\nPrvní: ${r.sample.join(', ')}`);
+      },
+    ],
+    [
+      'Kalendář',
+      async (log) => {
+        if (!isNative) throw notOnWeb('Číst kalendář');
+        const r = await DeviceInsights.readCalendar();
+        log(`Událostí: ${r.events}\nÚčty: ${r.accounts.join(', ') || '–'}`);
+      },
+    ],
+  ],
+});
+
+card({
+  title: 'Zařízení v okolí',
+  note:
+    'Android 12+: Bluetooth má vlastní oprávnění „Zařízení v okolí“ (dřív bylo potřeba polohu). ' +
+    'Název Wi‑Fi (SSID) ale pořád vyžaduje polohu – podle sítě se dá zjistit, kde jste. Web: jen výběr jednoho Bluetooth zařízení.',
+  actions: [
+    [
+      isNative ? 'Spárovaná Bluetooth zařízení' : 'Vybrat Bluetooth zařízení',
+      async (log) => {
+        if (isNative) return log(await DeviceInsights.getBluetoothDevices());
+        if (!navigator.bluetooth) throw new Error('Web Bluetooth tu není (Chrome/Edge, ne Safari ani Firefox)');
+        const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
+        log({ nazev: device.name, id: device.id });
+      },
+    ],
+    [
+      'Název Wi‑Fi',
+      async (log) => {
+        if (isNative) return log(await DeviceInsights.getWifiInfo());
+        const c = navigator.connection;
+        log({
+          ssid: 'web nezjistí',
+          ...(c ? { typ: c.type, rychlost: c.effectiveType, downlink_mbps: c.downlink, rtt_ms: c.rtt } : { connection: 'Network Information API chybí' }),
+        });
+      },
+    ],
+    isNative && ['Wi‑Fi s polohou', async (log) => log(await DeviceInsights.getWifiInfo({ requestLocation: true }))],
   ],
 });
 
@@ -194,53 +482,6 @@ card({
 });
 
 card({
-  title: 'Poloha',
-  note: 'Uživatel může dát jen přibližnou polohu nebo povolení „jen tentokrát“.',
-  actions: [
-    [
-      'Získat polohu',
-      (log) =>
-        new Promise((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(
-            ({ coords }) => resolve(log({ lat: coords.latitude, lon: coords.longitude, presnost_m: coords.accuracy })),
-            reject,
-            { enableHighAccuracy: true, timeout: 15000 },
-          ),
-        ),
-    ],
-  ],
-});
-
-card({
-  title: 'Kamera',
-  note: 'Při použití svítí indikátor kamery (Android 12+, iOS 14+).',
-  actions: [
-    [
-      'Zapnout',
-      async (log, el) => {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        let video = el.querySelector('video');
-        if (!video) {
-          video = Object.assign(document.createElement('video'), { autoplay: true, playsInline: true, muted: true });
-          el.append(video);
-        }
-        video.srcObject = stream;
-        log('Kamera běží.');
-      },
-    ],
-    [
-      'Vypnout',
-      async (log, el) => {
-        const video = el.querySelector('video');
-        video?.srcObject?.getTracks().forEach((t) => t.stop());
-        video?.remove();
-        log('Kamera vypnuta.');
-      },
-    ],
-  ],
-});
-
-card({
   title: 'Notifikace',
   note: 'iOS: web push jen pro PWA přidanou na plochu (iOS 16.4+). Android WebView Notification API nemá.',
   actions: [
@@ -258,6 +499,58 @@ card({
     ],
   ],
 });
+
+let wakeLock = null;
+
+card({
+  title: 'Bez ptaní',
+  note:
+    'Co aplikace dostane bez jakéhokoli dialogu (na Androidu „normální“ oprávnění jako VIBRATE nebo ACCESS_NETWORK_STATE). ' +
+    'Takové údaje se kombinují k fingerprintingu zařízení.',
+  actions: [
+    [
+      'Vibrovat',
+      async (log) => {
+        if (!navigator.vibrate) throw new Error('Vibration API tu není (iOS, desktop)');
+        log(navigator.vibrate([200, 100, 200]) ? 'Bzzz.' : 'Prohlížeč vibraci odmítl (chce kliknutí uživatele).');
+      },
+    ],
+    [
+      'Nezhasínat displej',
+      async (log) => {
+        if (wakeLock) {
+          await wakeLock.release();
+          wakeLock = null;
+          return log('Displej zase smí zhasnout.');
+        }
+        if (!navigator.wakeLock) throw new Error('Screen Wake Lock API tu není');
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.onrelease = () => (wakeLock = null);
+        log('Displej nezhasne, dokud je stránka vidět. Klikněte znovu pro vypnutí.');
+      },
+    ],
+    [
+      'Co o mně ví',
+      async (log) => {
+        const battery = await navigator.getBattery?.();
+        const c = navigator.connection;
+        log({
+          baterie: battery ? `${Math.round(battery.level * 100)} %${battery.charging ? ', nabíjí se' : ''}` : 'nedostupné',
+          sit: c ? `${c.effectiveType}, ${c.downlink} Mb/s` : 'nedostupné',
+          jader_cpu: navigator.hardwareConcurrency,
+          pamet_gb: navigator.deviceMemory ?? 'nedostupné',
+          displej: `${screen.width}×${screen.height} @${devicePixelRatio}x`,
+          jazyky: navigator.languages.join(', '),
+          casova_zona: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          dotyk: navigator.maxTouchPoints,
+        });
+      },
+    ],
+  ],
+});
+
+layoutCards();
+new ResizeObserver(layoutCards).observe(cards);
 
 // ---------- PWA: service worker + install prompt ----------
 

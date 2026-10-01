@@ -1,0 +1,5 @@
+{
+  "appId": "cz.explore.permissions",
+  "appName": "Permission Explorer",
+  "webDir": "dist"
+}

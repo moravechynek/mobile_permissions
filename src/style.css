@@ -1,0 +1,142 @@
+:root {
+  --bg: #f6f8fa;
+  --card: #ffffff;
+  --text: #1f2328;
+  --muted: #656d76;
+  --accent: #1f6feb;
+  --ok: #1a7f37;
+  --err: #cf222e;
+  --border: #d0d7de;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --text: #e6edf3;
+    --muted: #8d96a0;
+    --accent: #4493f8;
+    --ok: #3fb950;
+    --err: #f85149;
+    --border: #30363d;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 16px);
+  font: 16px/1.45 system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  padding: 16px 0 8px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+}
+
+h2 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.tag.native,
+.tag.web {
+  color: #fff;
+  border-color: transparent;
+  background: var(--accent);
+}
+
+.tag.native {
+  background: var(--ok);
+}
+
+main {
+  display: grid;
+  gap: 12px;
+  max-width: 720px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.note {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+footer button {
+  margin-top: 16px;
+  width: 100%;
+  max-width: 720px;
+}
+
+.out {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.out:empty {
+  display: none;
+}
+
+.out.ok {
+  color: var(--ok);
+}
+
+.out.err {
+  color: var(--err);
+}
+
+.out.pending {
+  color: var(--muted);
+}
+
+video {
+  margin-top: 10px;
+  width: 100%;
+  border-radius: 8px;
+}

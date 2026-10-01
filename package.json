@@ -1,0 +1,24 @@
+{
+  "name": "permission-explorer",
+  "version": "1.0.0",
+  "description": "Demo app: mobile permissions & distribution (PWA vs native)",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "icons": "node scripts/make-icons.mjs",
+    "android:sync": "vite build && cap sync android",
+    "android:open": "cap open android",
+    "android:apk": "vite build && cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "vite": "^6.4.3"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "private": true,
+  "type": "module"
+}

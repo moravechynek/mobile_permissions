@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Permission Explorer</string>
+    <string name="title_activity_main">Permission Explorer</string>
+    <string name="package_name">cz.explore.permissions</string>
+    <string name="custom_url_scheme">cz.explore.permissions</string>
+</resources>

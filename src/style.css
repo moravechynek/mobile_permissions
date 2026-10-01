@@ -28,8 +28,11 @@
 }
 
 body {
-  margin: 0;
-  padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 16px);
+  margin: 0 auto;
+  max-width: 1200px;
+  /* Safe areas keep content clear of notches / rounded corners, also in landscape. */
+  padding: env(safe-area-inset-top) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 16px)
+    calc(env(safe-area-inset-left) + 16px);
   font: 16px/1.45 system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -41,12 +44,18 @@ header {
 
 h1 {
   margin: 0 0 8px;
-  font-size: 1.4rem;
+  font-size: clamp(1.3rem, 1rem + 1.5vw, 1.9rem);
 }
 
 h2 {
   margin: 0 0 4px;
   font-size: 1.1rem;
+}
+
+.env {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .tag {
@@ -69,13 +78,16 @@ h2 {
   background: var(--ok);
 }
 
+/* One column on phones, as many ~340px columns as fit on tablets / desktop. */
 main {
   display: grid;
   gap: 12px;
-  max-width: 720px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  align-items: start;
 }
 
 .card {
+  min-width: 0;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -88,26 +100,43 @@ main {
   font-size: 0.9rem;
 }
 
+/* Buttons share the row evenly and stack when the card gets narrow. */
 .actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 8px;
 }
 
 button {
   font: inherit;
+  min-height: 44px; /* comfortable touch target */
   padding: 8px 14px;
   border-radius: 8px;
   border: 0;
   background: var(--accent);
   color: #fff;
   cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:active {
+  filter: brightness(0.9);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 
 footer button {
   margin-top: 16px;
   width: 100%;
-  max-width: 720px;
+}
+
+@media (min-width: 720px) {
+  footer button {
+    width: auto;
+  }
 }
 
 .out {
@@ -138,5 +167,7 @@ footer button {
 video {
   margin-top: 10px;
   width: 100%;
+  max-height: 50vh;
+  object-fit: cover;
   border-radius: 8px;
 }

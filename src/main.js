@@ -521,6 +521,38 @@ async function webrtcCandidates() {
   return [...found].map(([address, type]) => `${type === 'host' ? 'lokální' : type === 'srflx' ? 'veřejná (STUN)' : type}: ${address}`);
 }
 
+// Free keyless services with CORS; the second one is a fallback for when the first hits its daily limit.
+async function ipLocation(ip) {
+  const fromApi = async (url, map) => {
+    const res = await fetch(url, { cache: 'no-store' });
+    const d = await res.json();
+    if (!res.ok || d.error || d.bogon) throw new Error(d.reason ?? d.error?.message ?? `HTTP ${res.status}`);
+    return map(d);
+  };
+  const format = ({ city, region, country, lat, lon, org, source }) => ({
+    poloha: [city, region, country].filter(Boolean).join(', '),
+    souradnice: lat != null ? `${lat}, ${lon}` : '?',
+    mapa: lat != null ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=10/${lat}/${lon}` : undefined,
+    poskytovatel: org,
+    zdroj: source,
+  });
+  try {
+    return format(
+      await fromApi(`https://ipinfo.io/${ip}/json`, (d) => {
+        const [lat, lon] = d.loc?.split(',') ?? [];
+        return { city: d.city, region: d.region, country: d.country, lat, lon, org: d.org, source: 'ipinfo.io' };
+      }),
+    );
+  } catch {
+    return format(
+      await fromApi(`https://ipapi.co/${ip}/json/`, (d) => ({
+        city: d.city, region: d.region, country: d.country_name, lat: d.latitude, lon: d.longitude,
+        org: [d.asn, d.org].filter(Boolean).join(' '), source: 'ipapi.co',
+      })),
+    );
+  }
+}
+
 async function browserInfo() {
   const uad = navigator.userAgentData;
   const info = {
@@ -545,7 +577,8 @@ async function browserInfo() {
 card({
   title: 'IP, MAC, systém a prohlížeč',
   note:
-    'Nic z toho nevyžaduje oprávnění. Veřejnou IP vidí každý server, se kterým appka mluví. ' +
+    'Nic z toho nevyžaduje oprávnění. Veřejnou IP vidí každý server, se kterým appka mluví, a podle ní odhadne polohu ' +
+    '(země spolehlivě, město jen přibližně, na mobilních datech nebo přes VPN často úplně mimo). ' +
     'Lokální IP: web ji přes WebRTC skryje za náhodné *.local, nativní appka ji zjistí. ' +
     'MAC adresu nedostane nikdo: web nemá API, Android 6+ vrací 02:00:00:00:00:00 a 11+ nic – náhradou je ANDROID_ID.',
   actions: [
@@ -555,7 +588,14 @@ card({
         // Any server sees this; the page itself only learns it by asking one.
         const res = await fetch('https://api64.ipify.org?format=json', { cache: 'no-store' });
         const { ip } = await res.json();
-        log({ verejna_ip: ip, verze: ip.includes(':') ? 'IPv6' : 'IPv4', zdroj: 'api64.ipify.org' });
+        const result = { verejna_ip: ip, verze: ip.includes(':') ? 'IPv6' : 'IPv4' };
+        log(result, 'pending');
+        // Geolocation databases only guess: country is reliable, city often off, mobile data usually wrong.
+        try {
+          log({ ...result, ...(await ipLocation(ip)) });
+        } catch (e) {
+          log({ ...result, poloha: `nezjištěno (${e.message})` });
+        }
       },
     ],
     [

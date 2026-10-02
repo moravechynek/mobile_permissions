@@ -1,5 +1,9 @@
 Ukázková aplikace k prezentaci o oprávněních mobilních aplikací: stejný kód jako PWA i nativní Android aplikace.
 
+## Novinky ve verzi 1.1.1
+
+- Aplikace je rozdělená na dvě části: **Funguje bez ptaní** (schránka, nainstalované aplikace, fingerprinting, senzory) a **Ptá se uživatele** (poloha, kamera, kontakty…).
+
 ## Novinky ve verzi 1.1
 
 - Karta **IP, MAC, systém a prohlížeč**: veřejná IP s odhadem polohy, lokální IP (WebRTC vs. nativně), MAC adresa (skrytá), `ANDROID_ID`, User-Agent a Client Hints.

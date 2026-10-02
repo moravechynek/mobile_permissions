@@ -15,7 +15,18 @@
       <h1>Permission Explorer</h1>
       <div id="env" class="env"></div>
     </header>
-    <main id="cards"></main>
+    <main>
+      <section class="group">
+        <h2>Funguje bez ptaní</h2>
+        <p class="group-note">Tohle aplikace dostane bez jakéhokoli dialogu – uživatel se o tom nedozví.</p>
+        <div id="free" class="cards"></div>
+      </section>
+      <section class="group">
+        <h2>Ptá se uživatele</h2>
+        <p class="group-note">Systémový dialog nebo ruční zapnutí v Nastavení – uživatel o přístupu ví a může ho odmítnout.</p>
+        <div id="asks" class="cards"></div>
+      </section>
+    </main>
     <footer>
       <button id="install" hidden>Nainstalovat jako PWA</button>
     </footer>

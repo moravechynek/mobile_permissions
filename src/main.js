@@ -12,14 +12,17 @@ const isStandalone =
 
 // ---------- UI helpers ----------
 
-const cards = document.getElementById('cards');
-const cardEls = [];
+// Two groups: what an app gets silently (the interesting part) and what needs the user's consent.
+const groups = {
+  free: { el: document.getElementById('free'), cards: [] },
+  asks: { el: document.getElementById('asks'), cards: [] },
+};
 
 // `actions` entries may be falsy to leave a button out on one platform.
-function card({ title, note, actions }) {
+function card({ title, note, actions, group = 'asks' }) {
   const el = document.createElement('section');
   el.className = 'card';
-  el.innerHTML = `<h2>${title}</h2>${note ? `<p class="note">${note}</p>` : ''}<div class="actions"></div><pre class="out"></pre>`;
+  el.innerHTML = `<h3>${title}</h3>${note ? `<p class="note">${note}</p>` : ''}<div class="actions"></div><pre class="out"></pre>`;
   const out = el.querySelector('.out');
   const log = (msg, kind = 'ok') => {
     out.className = `out ${kind}`;
@@ -38,7 +41,7 @@ function card({ title, note, actions }) {
     };
     el.querySelector('.actions').append(btn);
   }
-  cardEls.push(el);
+  groups[group].cards.push(el);
 }
 
 // Masonry: cards go into fixed columns (each to the currently shortest one), so cards of different
@@ -49,12 +52,14 @@ const GAP = 12;
 let columnCount = 0;
 
 function layoutCards() {
-  const n = Math.max(1, Math.floor((cards.clientWidth + GAP) / (CARD_MIN_WIDTH + GAP)));
+  const n = Math.max(1, Math.floor((groups.free.el.clientWidth + GAP) / (CARD_MIN_WIDTH + GAP)));
   if (n === columnCount) return;
   columnCount = n;
-  const cols = Array.from({ length: n }, () => Object.assign(document.createElement('div'), { className: 'col' }));
-  cards.replaceChildren(...cols);
-  for (const el of cardEls) cols.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a)).append(el);
+  for (const { el, cards } of Object.values(groups)) {
+    const cols = Array.from({ length: n }, () => Object.assign(document.createElement('div'), { className: 'col' }));
+    el.replaceChildren(...cols);
+    for (const c of cards) cols.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a)).append(c);
+  }
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -240,6 +245,7 @@ const GENERIC_SENSORS = [
 ];
 
 card({
+  group: 'free',
   title: 'Senzory pohybu',
   note:
     'Akcelerometr a gyroskop nechtějí na Androidu žádné oprávnění (od 12 jen omezená frekvence 200 Hz). ' +
@@ -299,6 +305,7 @@ card({
 });
 
 card({
+  group: 'free',
   title: 'Schránka (clipboard)',
   note:
     'Zápis je většinou volný. Čtení: web jen po gestu + svolení; Android 10+ blokuje čtení na pozadí, ' +
@@ -400,6 +407,7 @@ card({
 });
 
 card({
+  group: 'free',
   title: 'Nainstalované aplikace',
   note:
     'Jen nativně. Android 11+ (package visibility): bez QUERY_ALL_PACKAGES vidíš jen systémové appky ' +
@@ -575,6 +583,7 @@ async function browserInfo() {
 }
 
 card({
+  group: 'free',
   title: 'IP, MAC, systém a prohlížeč',
   note:
     'Nic z toho nevyžaduje oprávnění. Veřejnou IP vidí každý server, se kterým appka mluví, a podle ní odhadne polohu ' +
@@ -631,6 +640,7 @@ card({
 let wakeLock = null;
 
 card({
+  group: 'free',
   title: 'Bez ptaní',
   note:
     'Co aplikace dostane bez jakéhokoli dialogu (na Androidu „normální“ oprávnění jako VIBRATE nebo ACCESS_NETWORK_STATE). ' +
@@ -678,7 +688,7 @@ card({
 });
 
 layoutCards();
-new ResizeObserver(layoutCards).observe(cards);
+new ResizeObserver(layoutCards).observe(groups.free.el);
 
 // ---------- PWA: service worker + install prompt ----------
 

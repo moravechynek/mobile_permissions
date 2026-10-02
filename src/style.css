@@ -48,8 +48,22 @@ h1 {
 }
 
 h2 {
+  margin: 0 0 2px;
+  font-size: clamp(1.15rem, 1rem + 0.8vw, 1.4rem);
+}
+
+h3 {
   margin: 0 0 4px;
   font-size: 1.1rem;
+}
+
+.group {
+  margin-top: 16px;
+}
+
+.group-note {
+  margin: 0 0 10px;
+  color: var(--muted);
 }
 
 .env {
@@ -79,7 +93,7 @@ h2 {
 }
 
 /* Masonry: JS (layoutCards) fills as many ~340px columns as fit; each column stacks its cards without gaps. */
-main {
+.cards {
   display: flex;
   gap: 12px;
   align-items: flex-start;

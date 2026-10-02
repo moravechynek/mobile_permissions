@@ -2,6 +2,8 @@
 
 Demo aplikace k prezentaci o mobilních aplikacích: **stejný kód** běží jako **PWA** i jako **nativní Android aplikace** (Capacitor), takže jde přímo porovnat, co která varianta smí.
 
+**Vyzkoušet online (PWA):** https://moravechynek.github.io/mobile_permissions/
+
 | Karta | PWA / web | Nativní Android |
 |---|---|---|
 | Všechna oprávnění | Permissions API (20 názvů) | celý manifest + úroveň ochrany, „Požádat o všechna“ |

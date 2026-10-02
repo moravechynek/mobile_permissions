@@ -500,6 +500,94 @@ card({
   ],
 });
 
+// Collects ICE candidates: "host" = local address (browsers hide it behind a random *.local name),
+// "srflx" = public address as seen by the STUN server.
+async function webrtcCandidates() {
+  if (!window.RTCPeerConnection) throw new Error('WebRTC tu není k dispozici');
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  const found = new Map();
+  pc.onicecandidate = ({ candidate }) => {
+    // "candidate:<foundation> <component> <protocol> <priority> <address> <port> typ <type> ..."
+    const parts = candidate?.candidate.split(' ');
+    if (parts?.length > 7 && parts[4]) found.set(parts[4], parts[7]);
+  };
+  pc.createDataChannel('');
+  await pc.setLocalDescription(await pc.createOffer());
+  await Promise.race([
+    new Promise((r) => (pc.onicegatheringstatechange = () => pc.iceGatheringState === 'complete' && r())),
+    sleep(4000),
+  ]);
+  pc.close();
+  return [...found].map(([address, type]) => `${type === 'host' ? 'lokální' : type === 'srflx' ? 'veřejná (STUN)' : type}: ${address}`);
+}
+
+async function browserInfo() {
+  const uad = navigator.userAgentData;
+  const info = {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform,
+    webview: /; wv\)/.test(navigator.userAgent) ? 'ano (Android WebView)' : 'ne',
+  };
+  if (!uad) return { ...info, userAgentData: 'nepodporováno (Safari, Firefox)' };
+  // Low-entropy hints are free; high-entropy ones are also granted silently in Chrome, just must be asked for.
+  const high = await uad.getHighEntropyValues(['platformVersion', 'model', 'architecture', 'bitness', 'fullVersionList']);
+  return {
+    ...info,
+    prohlizec: uad.brands.filter((b) => !/Not.?A.?Brand/i.test(b.brand)).map((b) => `${b.brand} ${b.version}`).join(', '),
+    os: `${uad.platform} ${high.platformVersion ?? ''}`.trim(),
+    model: high.model || '(neuvedeno)',
+    architektura: `${high.architecture ?? '?'} ${high.bitness ?? ''}bit`,
+    mobil: uad.mobile,
+    plne_verze: high.fullVersionList?.map((b) => `${b.brand} ${b.version}`).join(', '),
+  };
+}
+
+card({
+  title: 'IP, MAC, systém a prohlížeč',
+  note:
+    'Nic z toho nevyžaduje oprávnění. Veřejnou IP vidí každý server, se kterým appka mluví. ' +
+    'Lokální IP: web ji přes WebRTC skryje za náhodné *.local, nativní appka ji zjistí. ' +
+    'MAC adresu nedostane nikdo: web nemá API, Android 6+ vrací 02:00:00:00:00:00 a 11+ nic – náhradou je ANDROID_ID.',
+  actions: [
+    [
+      'Veřejná IP',
+      async (log) => {
+        // Any server sees this; the page itself only learns it by asking one.
+        const res = await fetch('https://api64.ipify.org?format=json', { cache: 'no-store' });
+        const { ip } = await res.json();
+        log({ verejna_ip: ip, verze: ip.includes(':') ? 'IPv6' : 'IPv4', zdroj: 'api64.ipify.org' });
+      },
+    ],
+    [
+      'Lokální IP a MAC',
+      async (log) => {
+        if (isNative) {
+          const r = await DeviceInsights.getDeviceIdentity();
+          return log({
+            rozhrani: r.interfaces.map((i) => `${i.name}: ${i.ips.join(', ')}  (MAC: ${i.mac ?? 'skrytá'})`),
+            wifi_mac: `${r.wifiMac} ${r.wifiMac === '02:00:00:00:00:00' ? '(falešná – Android 6+)' : ''}`.trim(),
+            android_id: r.androidId,
+          });
+        }
+        log({ webrtc: await webrtcCandidates(), mac: 'web nezjistí – žádné API' });
+      },
+    ],
+    [
+      'Systém a prohlížeč',
+      async (log) => {
+        const web = await browserInfo();
+        if (!isNative) return log(web);
+        const r = await DeviceInsights.getDeviceIdentity();
+        log({
+          zarizeni: `${r.manufacturer} ${r.model}`,
+          android: `${r.androidVersion} (API ${r.sdkInt}), bezpečnostní záplata ${r.securityPatch}`,
+          webview: web,
+        });
+      },
+    ],
+  ],
+});
+
 let wakeLock = null;
 
 card({

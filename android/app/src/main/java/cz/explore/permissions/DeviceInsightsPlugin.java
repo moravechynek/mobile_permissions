@@ -27,6 +27,7 @@ import android.os.Looper;
 import android.provider.CalendarContract;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
+import android.provider.Settings;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -37,8 +38,11 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -453,6 +457,63 @@ public class DeviceInsightsPlugin extends Plugin {
         ret.put("locationGranted", isGranted(Manifest.permission.ACCESS_FINE_LOCATION));
         ret.put("wifiEnabled", wm.isWifiEnabled());
         return ret;
+    }
+
+    // ---------- Device identity: IP, MAC, OS ----------
+
+    /** Everything here works without any runtime permission (only normal INTERNET / ACCESS_WIFI_STATE). */
+    @PluginMethod
+    @SuppressWarnings("deprecation") // WifiInfo.getMacAddress() – kept on purpose to show it is blanked out
+    @SuppressLint("HardwareIds")
+    public void getDeviceIdentity(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("manufacturer", Build.MANUFACTURER);
+        ret.put("model", Build.MODEL);
+        ret.put("androidVersion", Build.VERSION.RELEASE);
+        ret.put("sdkInt", Build.VERSION.SDK_INT);
+        ret.put("securityPatch", Build.VERSION.SECURITY_PATCH);
+        // The replacement for hardware IDs since Android 8: unique per app signing key + user + device.
+        ret.put("androidId", Settings.Secure.getString(resolver(), Settings.Secure.ANDROID_ID));
+
+        // Since Android 6 this is always the fake 02:00:00:00:00:00.
+        WifiManager wm = (WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        WifiInfo info = wm.getConnectionInfo();
+        ret.put("wifiMac", info != null ? info.getMacAddress() : null);
+
+        JSArray interfaces = new JSArray();
+        try {
+            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                if (!ni.isUp() || ni.isLoopback()) continue;
+                JSArray ips = new JSArray();
+                for (InetAddress a : Collections.list(ni.getInetAddresses())) {
+                    String ip = a.getHostAddress();
+                    ips.put(ip != null && ip.contains("%") ? ip.substring(0, ip.indexOf('%')) : ip);
+                }
+                JSObject o = new JSObject();
+                o.put("name", ni.getName());
+                o.put("ips", ips);
+                // Android 11+ returns null for apps targeting API 30+, older versions a fake address.
+                o.put("mac", macOf(ni));
+                interfaces.put(o);
+            }
+        } catch (Exception e) {
+            ret.put("interfacesError", e.toString());
+        }
+        ret.put("interfaces", interfaces);
+        call.resolve(ret);
+    }
+
+    private static String macOf(NetworkInterface ni) {
+        byte[] mac;
+        try {
+            mac = ni.getHardwareAddress();
+        } catch (Exception e) {
+            return null;
+        }
+        if (mac == null) return null;
+        StringBuilder sb = new StringBuilder();
+        for (byte b : mac) sb.append(sb.length() > 0 ? ":" : "").append(String.format("%02x", b));
+        return sb.toString();
     }
 
     // ---------- Helpers ----------

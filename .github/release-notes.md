@@ -1,5 +1,10 @@
 Ukázková aplikace k prezentaci o oprávněních mobilních aplikací: stejný kód jako PWA i nativní Android aplikace.
 
+## Novinky ve verzi 1.1
+
+- Karta **IP, MAC, systém a prohlížeč**: veřejná IP s odhadem polohy, lokální IP (WebRTC vs. nativně), MAC adresa (skrytá), `ANDROID_ID`, User-Agent a Client Hints.
+- Karty mikrofon, senzory pohybu, kontakty a kalendář, zařízení v okolí, všechna oprávnění.
+
 ## Stažení
 
 - **Android:** `permission-explorer.apk` níže (debug build, instalace mimo Google Play – povolte „Instalovat neznámé aplikace“).

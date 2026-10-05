@@ -244,6 +244,63 @@ const GENERIC_SENSORS = [
   'AbsoluteOrientationSensor', 'RelativeOrientationSensor', 'AmbientLightSensor',
 ];
 
+const SENSOR_UNITS = {
+  accelerometer: 'm/s²', accelerometer_uncalibrated: 'm/s²', gravity: 'm/s²', linear_acceleration: 'm/s²',
+  gyroscope: 'rad/s', gyroscope_uncalibrated: 'rad/s',
+  magnetic_field: 'µT', magnetic_field_uncalibrated: 'µT',
+  light: 'lx', pressure: 'hPa', proximity: 'cm', orientation: '°', step_counter: 'kroků',
+};
+const SENSOR_STATUS = {
+  'one-shot': 'jednorázový – ozve se jen při události (gesto, pohyb)',
+  refused: 'odmítnuto – chce oprávnění',
+  silent: 'nic nenahlásil (hlásí jen změny)',
+};
+
+function formatSensorReadings({ sensors }) {
+  const withData = sensors.filter((s) => s.status === 'ok').length;
+  return (
+    `Data z ${withData} z ${sensors.length} senzorů (bez jakéhokoli oprávnění)\n\n` +
+    sensors
+      .map((s) => {
+        const head = `${s.type}  —  ${s.name}`;
+        if (s.status !== 'ok') return `${head}\n    ${SENSOR_STATUS[s.status]}`;
+        const values = s.values.map((v) => (v == null ? '?' : Math.round(v * 100) / 100)).join(', ');
+        return `${head}\n    ${values} ${SENSOR_UNITS[s.type] ?? ''}  (${s.events}×)`;
+      })
+      .join('\n')
+  );
+}
+
+// Web counterpart: the Generic Sensor API (Chrome/Edge on Android; desktop browsers mostly have no sensors).
+async function measureGenericSensors(ms) {
+  const result = {};
+  const running = [];
+  for (const name of GENERIC_SENSORS) {
+    if (!(name in window)) {
+      result[name] = 'nepodporováno';
+      continue;
+    }
+    try {
+      const sensor = new window[name]({ frequency: 10 });
+      result[name] = 'žádná data';
+      sensor.onreading = () => {
+        result[name] =
+          'illuminance' in sensor ? `${round(sensor.illuminance)} lx`
+          : 'quaternion' in sensor ? sensor.quaternion.map((q) => Math.round(q * 100) / 100).join(', ')
+          : `x ${round(sensor.x)}, y ${round(sensor.y)}, z ${round(sensor.z)}`;
+      };
+      sensor.onerror = (e) => (result[name] = `${e.error.name}: ${e.error.message}`);
+      sensor.start();
+      running.push(sensor);
+    } catch (e) {
+      result[name] = `${e.name}: ${e.message}`;
+    }
+  }
+  await sleep(ms);
+  running.forEach((s) => s.stop());
+  return result;
+}
+
 card({
   group: 'free',
   title: 'Senzory pohybu',
@@ -295,6 +352,14 @@ card({
       },
     ],
     [
+      'Měřit všechny (3 s)',
+      async (log) => {
+        log('Měřím všechny senzory 3 s…', 'pending');
+        if (isNative) return log(formatSensorReadings(await DeviceInsights.measureAllSensors({ durationMs: 3000 })));
+        log(await measureGenericSensors(3000));
+      },
+    ],
+    [
       'Kroky',
       async (log) => {
         if (!isNative) throw notOnWeb('Krokoměr');
@@ -327,15 +392,15 @@ card({
       },
     ],
     [
-      'Přečíst za 5 s (přepni appku!)',
+      'Přečíst za 3 s (přepni appku!)',
       async (log) => {
-        log('Za 5 s čtu schránku – přepni teď do jiné aplikace…', 'pending');
+        log('Za 3 s čtu schránku – přepni teď do jiné aplikace…', 'pending');
         if (isNative) {
           // Delay is done natively, because WebView timers may be paused in the background.
-          const r = await DeviceInsights.readClipboardDelayed({ delayMs: 5000 });
+          const r = await DeviceInsights.readClipboardDelayed({ delayMs: 3000 });
           log(r);
         } else {
-          await sleep(5000);
+          await sleep(3000);
           log(`Přečteno: ${await navigator.clipboard.readText()}`);
         }
       },

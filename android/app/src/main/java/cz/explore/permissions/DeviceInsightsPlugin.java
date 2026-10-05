@@ -47,8 +47,10 @@ import java.net.NetworkInterface;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -214,7 +216,7 @@ public class DeviceInsightsPlugin extends Plugin {
 
     @PluginMethod
     public void readClipboardDelayed(PluginCall call) {
-        int delayMs = call.getInt("delayMs", 5000);
+        int delayMs = call.getInt("delayMs", 3000);
         new Handler(Looper.getMainLooper()).postDelayed(() -> call.resolve(readClipboardNow()), delayMs);
     }
 
@@ -356,6 +358,60 @@ public class DeviceInsightsPlugin extends Plugin {
         ret.put("sensors", list);
         ret.put("sdkInt", Build.VERSION.SDK_INT);
         call.resolve(ret);
+    }
+
+    /** Listens to every sensor at once for a while and returns the last value of each – still without any permission. */
+    @PluginMethod
+    public void measureAllSensors(PluginCall call) {
+        int durationMs = call.getInt("durationMs", 3000);
+        SensorManager sm = sensorManager();
+        Map<Sensor, float[]> last = new LinkedHashMap<>();
+        Map<Sensor, Integer> counts = new LinkedHashMap<>();
+        Map<Sensor, String> status = new LinkedHashMap<>();
+        SensorEventListener listener = new SensorEventListener() {
+            @Override
+            public void onSensorChanged(SensorEvent event) {
+                last.put(event.sensor, event.values.clone());
+                counts.merge(event.sensor, 1, Integer::sum);
+            }
+
+            @Override
+            public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+        };
+        Handler main = new Handler(Looper.getMainLooper());
+        List<Sensor> sensors = sm.getSensorList(Sensor.TYPE_ALL);
+        for (Sensor s : sensors) {
+            if (s.getReportingMode() == Sensor.REPORTING_MODE_ONE_SHOT) {
+                // Gestures like significant motion fire once per event and need requestTriggerSensor().
+                status.put(s, "one-shot");
+            } else if (!sm.registerListener(listener, s, SensorManager.SENSOR_DELAY_NORMAL, main)) {
+                // E.g. the step counter without ACTIVITY_RECOGNITION.
+                status.put(s, "refused");
+            }
+        }
+        main.postDelayed(
+            () -> {
+                sm.unregisterListener(listener);
+                JSArray list = new JSArray();
+                for (Sensor s : sensors) {
+                    JSObject o = new JSObject();
+                    o.put("name", s.getName());
+                    o.put("type", s.getStringType().replace("android.sensor.", ""));
+                    JSArray values = new JSArray();
+                    float[] v = last.get(s);
+                    // JSON has no NaN / Infinity.
+                    for (int i = 0; v != null && i < v.length; i++) values.put(Float.isFinite(v[i]) ? v[i] : null);
+                    o.put("values", values);
+                    o.put("events", counts.getOrDefault(s, 0));
+                    o.put("status", status.getOrDefault(s, v != null ? "ok" : "silent"));
+                    list.put(o);
+                }
+                JSObject ret = new JSObject();
+                ret.put("sensors", list);
+                call.resolve(ret);
+            },
+            durationMs
+        );
     }
 
     @PluginMethod

@@ -52,6 +52,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <!-- Notifications: runtime permission since Android 13, before that allowed by default. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Normal permissions: granted at install time, the user is never asked. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />

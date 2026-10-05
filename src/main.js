@@ -491,11 +491,15 @@ card({
 
 card({
   title: 'Notifikace',
-  note: 'iOS: web push jen pro PWA přidanou na plochu (iOS 16.4+). Android WebView Notification API nemá.',
+  note: 'iOS: web push jen pro PWA přidanou na plochu (iOS 16.4+). Android WebView Notification API nemá, nativní appka je posílá sama (Android 13+ se ptá na POST_NOTIFICATIONS).',
   actions: [
     [
       'Povolit a poslat',
       async (log) => {
+        if (isNative) {
+          const r = await DeviceInsights.showNotification({ title: 'Permission Explorer', body: 'Ahoj z Permission Exploreru' });
+          return log(r.enabled ? 'Odesláno.' : 'Odesláno, ale notifikace jsou v Nastavení vypnuté.', r.enabled ? 'ok' : 'err');
+        }
         if (!('Notification' in window)) throw new Error('Notification API tu není k dispozici');
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') return log(`Oprávnění: ${perm}`, 'err');

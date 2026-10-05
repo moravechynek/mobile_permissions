@@ -24,7 +24,7 @@ Architektura: univerzální (arm64, armv7, x86, x86_64) – aplikace nemá nativ
 | Zákaz čtení schránky na pozadí | 10 |
 | Package visibility (omezený seznam aplikací), „All files access“ | 11 |
 | Toast při čtení schránky, přibližná poloha, indikátor kamery | 12 |
-| `READ_MEDIA_IMAGES` místo `READ_EXTERNAL_STORAGE` | 13 |
+| `READ_MEDIA_IMAGES` místo `READ_EXTERNAL_STORAGE`, notifikace jen po povolení (`POST_NOTIFICATIONS`) | 13 |
 | Přístup jen k vybraným fotkám | 14 |
 
 Na starších verzích se příslušné ukázky chovají „postaru“ (např. Android 9 povolí čtení schránky i na pozadí).

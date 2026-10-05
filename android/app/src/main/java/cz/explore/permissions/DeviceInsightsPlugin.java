@@ -9,6 +9,8 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -28,6 +30,8 @@ import android.provider.CalendarContract;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
+
+import androidx.core.app.NotificationCompat;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -72,6 +76,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
         @Permission(alias = "activity", strings = { Manifest.permission.ACTIVITY_RECOGNITION }),
         // Android 12+ (API 31), before that Bluetooth uses the normal BLUETOOTH permission.
         @Permission(alias = "nearby", strings = { Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT }),
+        // Android 13+ (API 33), before that notifications are allowed by default.
+        @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS }),
     }
 )
 public class DeviceInsightsPlugin extends Plugin {
@@ -398,6 +404,46 @@ public class DeviceInsightsPlugin extends Plugin {
             },
             5000
         );
+    }
+
+    // ---------- Notifications ----------
+
+    // The Android WebView has no web Notification API, so the native app posts them itself.
+    @PluginMethod
+    public void showNotification(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= 33 && !isGranted(Manifest.permission.POST_NOTIFICATIONS)) {
+            requestPermissionForAlias("notifications", call, "notificationCallback");
+        } else {
+            showNotificationNow(call);
+        }
+    }
+
+    @PermissionCallback
+    private void notificationCallback(PluginCall call) {
+        if (isGranted(Manifest.permission.POST_NOTIFICATIONS)) showNotificationNow(call);
+        else call.reject("Oprávnění POST_NOTIFICATIONS zamítnuto");
+    }
+
+    @SuppressLint("MissingPermission") // checked in showNotification()
+    private void showNotificationNow(PluginCall call) {
+        NotificationManager nm = getContext().getSystemService(NotificationManager.class);
+        String channelId = "demo";
+        if (Build.VERSION.SDK_INT >= 26) {
+            nm.createNotificationChannel(new NotificationChannel(channelId, "Ukázka", NotificationManager.IMPORTANCE_DEFAULT));
+        }
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getContext(), channelId)
+            .setSmallIcon(R.drawable.ic_stat_notify)
+            .setColor(0xFF1F6FEB) // brand blue, tints the icon in the notification shade
+            .setContentTitle(call.getString("title", "Permission Explorer"))
+            .setContentText(call.getString("body", ""))
+            .setAutoCancel(true);
+        nm.notify((int) System.currentTimeMillis(), builder.build());
+
+        JSObject ret = new JSObject();
+        // The user can still switch notifications off per app (or per channel) in Settings.
+        ret.put("enabled", nm.areNotificationsEnabled());
+        ret.put("sdkInt", Build.VERSION.SDK_INT);
+        call.resolve(ret);
     }
 
     // ---------- Nearby devices ----------

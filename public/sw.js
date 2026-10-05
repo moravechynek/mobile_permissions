@@ -1,5 +1,5 @@
 // Minimal service worker: makes the PWA installable and usable offline (cache-first for same-origin GETs).
-const CACHE = 'perm-explorer-v7';
+const CACHE = 'perm-explorer-v8';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html', './manifest.webmanifest'])));

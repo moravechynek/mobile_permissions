@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status bar icon: the app's key-hole (see scripts/make-icons.mjs), white on transparent as Android requires. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,3a5,5 0,1 1,0 10a5,5 0,1 1,0 -10z M9.73,8h4.54v12.7h-4.54z" />
+</vector>

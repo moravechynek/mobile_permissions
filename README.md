@@ -52,7 +52,7 @@ adb install android/app/build/outputs/apk/standard/debug/app-standard-debug.apk
 adb install android/app/build/outputs/apk/queryAll/debug/app-queryAll-debug.apk   # varianta s QUERY_ALL_PACKAGES
 ```
 
-APK lze rozdat přímo, přes GitHub Releases (+ Obtainium) nebo F-Droid.
+APK lze rozdat přímo, přes GitHub Releases, Zapstore nebo F-Droid.
 
 ## Scénáře pro prezentaci
 

@@ -1,6 +1,6 @@
 {
   "name": "permission-explorer",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Demo app: mobile permissions & distribution (PWA vs native)",
   "scripts": {
     "dev": "vite --host",

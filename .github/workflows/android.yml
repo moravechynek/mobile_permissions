@@ -22,9 +22,12 @@ jobs:
       - run: npm ci
       # Builds the web app into dist/ and copies it plus plugin config into the Android project.
       - run: npm run android:sync
-      - run: ./gradlew assembleDebug
+      # Both flavors: standard and "queryAll" (QUERY_ALL_PACKAGES).
+      - run: ./gradlew assembleStandardDebug assembleQueryAllDebug
         working-directory: android
       - uses: actions/upload-artifact@v4
         with:
           name: permission-explorer-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/standard/debug/app-standard-debug.apk
+            android/app/build/outputs/apk/queryAll/debug/app-queryAll-debug.apk

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Extra manifest of the "queryAll" flavor, merged into src/main/AndroidManifest.xml at build time.
+  Installs next to the standard app (applicationId cz.explore.permissions.all), so both can be compared on one phone.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Sees EVERY installed app. Google Play allows this only for approved use cases (launchers, antivirus, ...). -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+</manifest>

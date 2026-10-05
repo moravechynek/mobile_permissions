@@ -3,6 +3,7 @@ Ukázková aplikace k prezentaci o oprávněních mobilních aplikací: stejný 
 ## Stažení
 
 - **Android:** `permission-explorer.apk` níže (debug build, instalace mimo Google Play – povolte „Instalovat neznámé aplikace“).
+- **Android, varianta „vše“:** `permission-explorer-all.apk` – stejná aplikace s `QUERY_ALL_PACKAGES` v manifestu, vidí všechny nainstalované aplikace. Instaluje se vedle běžné verze, takže jde rozdíl ukázat na jednom telefonu.
 - **Web / PWA (Android, iOS, desktop):** https://moravechynek.github.io/mobile_permissions/
 
 ## Kompatibilita

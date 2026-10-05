@@ -121,15 +121,7 @@ public class DeviceInsightsPlugin extends Plugin {
         PackageManager pm = getContext().getPackageManager();
         JSArray list = new JSArray();
         try {
-            PackageInfo info = pm.getPackageInfo(getContext().getPackageName(), PackageManager.GET_PERMISSIONS);
-            for (int i = 0; info.requestedPermissions != null && i < info.requestedPermissions.length; i++) {
-                String name = info.requestedPermissions[i];
-                JSObject o = new JSObject();
-                o.put("name", name);
-                o.put("granted", (info.requestedPermissionsFlags[i] & PackageInfo.REQUESTED_PERMISSION_GRANTED) != 0);
-                o.put("level", protectionLevel(pm, name));
-                list.put(o);
-            }
+            list = permissionsOf(pm, pm.getPackageInfo(getContext().getPackageName(), PackageManager.GET_PERMISSIONS));
         } catch (PackageManager.NameNotFoundException e) {
             // Cannot happen for our own package.
         }
@@ -138,6 +130,20 @@ public class DeviceInsightsPlugin extends Plugin {
         ret.put("allFilesAccess", Build.VERSION.SDK_INT >= 30 && Environment.isExternalStorageManager());
         ret.put("sdkInt", Build.VERSION.SDK_INT);
         return ret;
+    }
+
+    /** What the app declares in its manifest and what the user (or the system) has granted. */
+    private static JSArray permissionsOf(PackageManager pm, PackageInfo info) {
+        JSArray list = new JSArray();
+        for (int i = 0; info.requestedPermissions != null && i < info.requestedPermissions.length; i++) {
+            String name = info.requestedPermissions[i];
+            JSObject o = new JSObject();
+            o.put("name", name);
+            o.put("granted", (info.requestedPermissionsFlags[i] & PackageInfo.REQUESTED_PERMISSION_GRANTED) != 0);
+            o.put("level", protectionLevel(pm, name));
+            list.put(o);
+        }
+        return list;
     }
 
     private static String protectionLevel(PackageManager pm, String name) {
@@ -184,6 +190,32 @@ public class DeviceInsightsPlugin extends Plugin {
         ret.put("queryAllPackages", declaresPermission(Manifest.permission.QUERY_ALL_PACKAGES));
         ret.put("sdkInt", Build.VERSION.SDK_INT);
         call.resolve(ret);
+    }
+
+    /** Manifest permissions of every visible user app – readable without any permission of our own. */
+    @PluginMethod
+    public void getAppPermissions(PluginCall call) {
+        PackageManager pm = getContext().getPackageManager();
+        List<PackageInfo> packages = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS);
+        packages.sort((a, b) -> label(pm, a).compareToIgnoreCase(label(pm, b)));
+
+        JSArray list = new JSArray();
+        for (PackageInfo p : packages) {
+            if (p.applicationInfo == null || (p.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) continue;
+            JSObject o = new JSObject();
+            o.put("packageName", p.packageName);
+            o.put("label", label(pm, p));
+            o.put("permissions", permissionsOf(pm, p));
+            list.put(o);
+        }
+        JSObject ret = new JSObject();
+        ret.put("apps", list);
+        ret.put("queryAllPackages", declaresPermission(Manifest.permission.QUERY_ALL_PACKAGES));
+        call.resolve(ret);
+    }
+
+    private static String label(PackageManager pm, PackageInfo p) {
+        return p.applicationInfo != null ? pm.getApplicationLabel(p.applicationInfo).toString() : p.packageName;
     }
 
     @PluginMethod

@@ -47,18 +47,21 @@ sestaví GitHub Actions (workflow „Build Android APK“ → Artifacts).
 
 ```bash
 npm run android:open   # otevře projekt v Android Studiu
-npm run android:apk    # nebo z CLI → android/app/build/outputs/apk/debug/app-debug.apk
-adb install android/app/build/outputs/apk/debug/app-debug.apk
+npm run android:apk    # nebo z CLI → android/app/build/outputs/apk/{standard,queryAll}/debug/*.apk
+adb install android/app/build/outputs/apk/standard/debug/app-standard-debug.apk
+adb install android/app/build/outputs/apk/queryAll/debug/app-queryAll-debug.apk   # varianta s QUERY_ALL_PACKAGES
 ```
 
 APK lze rozdat přímo, přes GitHub Releases (+ Obtainium) nebo F-Droid.
 
 ## Scénáře pro prezentaci
 
-1. **Clipboard z pozadí:** „Zapsat text“ → „Přečíst za 5 s“ → přepnout do jiné aplikace.
+1. **Clipboard z pozadí:** „Zapsat text“ → „Přečíst za 3 s“ → přepnout do jiné aplikace.
    Na Androidu 10+ vrátí `text: null`, protože aplikace není v popředí. Při čtení v popředí ukáže Android 12+ toast.
 2. **Seznam aplikací:** „Vypsat“ ukáže jen systémové aplikace + WhatsApp a prohlížeče (z `<queries>`).
-   Pak v `AndroidManifest.xml` odkomentujte `QUERY_ALL_PACKAGES`, přebuildujte a uvidíte **všechno**.
+   Pak otevřete „Permission Explorer (vše)“ (flavor `queryAll`, navíc `QUERY_ALL_PACKAGES`) a uvidíte **všechno**.
+   Manifest nejde změnit za běhu, proto jsou to dvě aplikace vedle sebe. „Jejich oprávnění“ vypíše, co si
+   která aplikace řekla v manifestu a co jí uživatel povolil – k tomu žádné oprávnění potřeba není.
    Proto ho Google Play povoluje jen schváleným kategoriím aplikací.
 3. **Web vs. nativ:** stejná karta „Nainstalované aplikace“ v PWA skončí chybou „not implemented“.
 4. **Úložiště:** „Požádat o fotky“ → na Androidu 14+ zvolit „Vybrat fotky“ a vybrat 2 → `visibleImages: 2`.

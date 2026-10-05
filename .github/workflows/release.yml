@@ -23,11 +23,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: npm ci
       - run: npm run android:sync
-      - run: ./gradlew assembleDebug
+      - run: ./gradlew assembleStandardDebug assembleQueryAllDebug
         working-directory: android
-      - run: cp android/app/build/outputs/apk/debug/app-debug.apk permission-explorer.apk
+      - run: |
+          cp android/app/build/outputs/apk/standard/debug/app-standard-debug.apk permission-explorer.apk
+          cp android/app/build/outputs/apk/queryAll/debug/app-queryAll-debug.apk permission-explorer-all.apk
       - uses: softprops/action-gh-release@v2
         with:
           name: Permission Explorer ${{ github.ref_name }}
           body_path: .github/release-notes.md
-          files: permission-explorer.apk
+          files: |
+            permission-explorer.apk
+            permission-explorer-all.apk

@@ -105,6 +105,25 @@ function formatAndroidPermissions({ permissions, sdkInt }) {
   return lines.join('\n');
 }
 
+// Per app: what the user granted out of the runtime / special permissions; normal ones only counted.
+function formatAppPermissions({ apps, queryAllPackages }) {
+  const lines = [
+    `QUERY_ALL_PACKAGES v manifestu: ${queryAllPackages ? 'ANO' : 'ne'}`,
+    `Uživatelských aplikací: ${apps.length}  (✓ povoleno, ✗ nepovoleno; normální se povolují samy)`,
+  ];
+  for (const app of apps) {
+    const asks = app.permissions.filter((p) => p.level === 'runtime' || p.level === 'special');
+    const short = (p) => `${p.granted ? '✓' : '✗'} ${p.name.replace(/^android\.permission\./, '')}`;
+    lines.push(
+      '',
+      `${app.label}  —  ${app.packageName}`,
+      `  ${app.permissions.length} oprávnění, z toho ${asks.length} runtime/speciálních`,
+      ...asks.sort((a, b) => b.granted - a.granted).map((p) => `    ${short(p)}`),
+    );
+  }
+  return lines.join('\n');
+}
+
 card({
   title: 'Všechna oprávnění',
   note:
@@ -489,6 +508,10 @@ card({
             userApps.map((a) => `${a.label}  —  ${a.packageName}`).join('\n'),
         );
       },
+    ],
+    [
+      'Jejich oprávnění',
+      async (log) => log(formatAppPermissions(await DeviceInsights.getAppPermissions())),
     ],
     [
       'Je nainstalován WhatsApp?',

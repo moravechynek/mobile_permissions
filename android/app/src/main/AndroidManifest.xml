@@ -79,12 +79,10 @@
 
     <!--
       DEMO: package visibility (Android 11+).
-      Commented out  -> the app sees only system apps + the packages listed in <queries> below.
-      Uncommented    -> the app sees EVERY installed app. Google Play allows this only for
-                        approved use cases (launchers, antivirus, ...).
-      Rebuild with `npm run android:apk` after changing it and compare the "Nainstalované aplikace" card.
+      This app sees only system apps + the packages listed in <queries> below.
+      The "queryAll" flavor (src/queryAll/AndroidManifest.xml) adds QUERY_ALL_PACKAGES and sees EVERY installed app:
+      install both APKs and compare the "Nainstalované aplikace" card.
     -->
-    <!-- <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" /> -->
 
     <queries>
         <!-- Specific apps we are allowed to "see" without QUERY_ALL_PACKAGES. -->
